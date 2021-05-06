@@ -1,5 +1,6 @@
+import { RoutesResponseItemData } from './Routes.types';
 
-const MOCK_ROUTES = [
+const MOCK_ROUTES: RoutesResponseItemData[] = [
   {
     id: '1',
     suburb: 'Gosford',
@@ -22,6 +23,6 @@ const MOCK_ROUTES = [
 export async function getRoutes() {
   return Promise.resolve({
     status: 'ok',
-    data: MOCK_ROUTES
+    data: MOCK_ROUTES,
   });
 }

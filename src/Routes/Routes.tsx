@@ -1,57 +1,20 @@
 import React, { useState, useEffect } from 'react';
 
 import { getRoutes } from './Routes.http';
+import { convertRoutesToRouteIndicators } from './Routes.functions';
+import { RouteIndicator } from './Routes.types';
 import './Routes.css';
 
 function Routes() {
-  const [ routes, setRoutes ] = useState<any[]>([]);
+  const [routeIndicators, setRouteIndicators] = useState<RouteIndicator[]>([]);
 
   useEffect(() => {
     async function fetchRoutes() {
       const fetchedRoutesResponse = await getRoutes();
 
-      const routes = (fetchedRoutesResponse?.data || []).map(route => {
-        const timeArrivedAtStoreTime = route.timeArrivedAtStore ? new Date(route.timeArrivedAtStore) : undefined;
-        const timeScheduledToArriveAtStoreTime = new Date(route.timeScheduledToArriveAtStore);
+      const newRouteIndicators = convertRoutesToRouteIndicators(fetchedRoutesResponse.data || []);
 
-        let status;
-
-        if (!timeArrivedAtStoreTime) {
-          status = 'Not arrived'
-        } else if (timeArrivedAtStoreTime.getTime() > (timeScheduledToArriveAtStoreTime.getTime() + (5 * 60 * 1000))) {
-          status = 'Late';
-        } else if (timeArrivedAtStoreTime.getTime() > (timeScheduledToArriveAtStoreTime.getTime())) {
-          status = 'Encroaching';
-        } else {
-          status = 'On Time'
-        }
-
-        let color;
-        switch (status) {
-          case 'Not arrived':
-            color = 'charcoal';
-            break;
-          case 'Late':
-            color = 'red';
-            break;
-          case 'Encroaching':
-            color = 'orange';
-            break;
-          case 'On Time':
-            color = 'darkGreen';
-            break;
-        }
-
-        return {
-          ...route,
-          timeArrivedAtStoreTime,
-          timeScheduledToArriveAtStoreTime,
-          status,
-          color,
-        };
-      });
-
-      setRoutes(routes);
+      setRouteIndicators(newRouteIndicators);
     }
 
     fetchRoutes();
@@ -70,19 +33,12 @@ function Routes() {
         </thead>
 
         <tbody>
-          {routes.map(({
-            id,
-            suburb,
-            timeArrivedAtStore,
-            timeScheduledToArriveAtStore,
-            status,
-            color
-          }) => (
+          {routeIndicators.map(({ id, suburb, arrivedTime, expectedTime, statusLabel, color }) => (
             <tr key={id}>
-              <td>{ suburb }</td>
-              <td>{ new Date(timeArrivedAtStore).toLocaleTimeString() }</td>
-              <td>{ new Date(timeScheduledToArriveAtStore).toLocaleTimeString() }</td>
-              <td style={{ color }}>⬤ {status}</td>
+              <td>{suburb}</td>
+              <td>{arrivedTime}</td>
+              <td>{expectedTime}</td>
+              <td style={{ color }}>⬤ {statusLabel}</td>
             </tr>
           ))}
         </tbody>
