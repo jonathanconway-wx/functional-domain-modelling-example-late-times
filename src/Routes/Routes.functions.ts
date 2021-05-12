@@ -1,26 +1,81 @@
 import { STATUS_COLORS, STATUS_LABELS } from './Routes.constants';
-import { RouteIndicator, RoutesResponseItemData, RouteStatus } from './Routes.types';
+import {
+  RouteDetailsResponseData,
+  RouteIndicator,
+  RoutesResponseItemData,
+  RouteStatus,
+  Route,
+  RouteDetails,
+} from './Routes.types';
 
 export function convertRoutesToRouteIndicators(routes: RoutesResponseItemData[]) {
-  return routes.map(convertRouteToRouteIndicator);
+  return routes.map(convertRouteResponseItemDataToRoute).map(convertRouteToRouteIndicator);
+}
+
+export function convertRouteDetailsResponseDataToRouteDetails(
+  routeDetailsResponseItemData: RouteDetailsResponseData
+): RouteDetails {
+  const route = convertRouteResponseItemDataToRoute(routeDetailsResponseItemData);
+  const routeDetails = {
+    ...route,
+    driverName: routeDetailsResponseItemData.driverName,
+  };
+
+  return routeDetails;
+}
+
+export function convertRouteToRouteIndicator(route: Route): RouteIndicator {
+  const { status } = route;
+
+  const statusLabel = STATUS_LABELS[status];
+
+  const color = STATUS_COLORS[status];
+
+  return {
+    ...route,
+    statusLabel,
+    color,
+  };
+}
+
+export function convertRouteResponseItemDataToRoute(route: RoutesResponseItemData): Route {
+  const { id, suburb } = route;
+
+  const { arrivedAtStoreTime, scheduledToArriveAtStoreTime } = parseRouteTimes(route);
+
+  const arrivedTime = arrivedAtStoreTime?.toLocaleTimeString() || '';
+  const expectedTime = scheduledToArriveAtStoreTime.toLocaleTimeString();
+
+  const status = calculateRouteStatus({
+    arrivedAtStoreTime,
+    scheduledToArriveAtStoreTime,
+  });
+
+  return {
+    id,
+    suburb,
+    arrivedTime,
+    expectedTime,
+    status,
+  };
 }
 
 export function calculateRouteStatus({
-  timeScheduledToArriveAtStoreTime,
-  timeArrivedAtStoreTime,
+  arrivedAtStoreTime,
+  scheduledToArriveAtStoreTime,
 }: {
-  timeScheduledToArriveAtStoreTime: Date;
-  timeArrivedAtStoreTime?: Date;
+  arrivedAtStoreTime?: Date;
+  scheduledToArriveAtStoreTime: Date;
 }) {
   let status: RouteStatus;
-  if (!timeArrivedAtStoreTime) {
+  if (!arrivedAtStoreTime) {
     status = RouteStatus.NotArrived;
   } else if (
-    timeArrivedAtStoreTime.getTime() >
-    timeScheduledToArriveAtStoreTime.getTime() + 5 * 60 * 1000
+    arrivedAtStoreTime.getTime() >
+    scheduledToArriveAtStoreTime.getTime() + 5 * 60 * 1000
   ) {
     status = RouteStatus.Late;
-  } else if (timeArrivedAtStoreTime.getTime() > timeScheduledToArriveAtStoreTime.getTime()) {
+  } else if (arrivedAtStoreTime.getTime() > scheduledToArriveAtStoreTime.getTime()) {
     status = RouteStatus.Encroaching;
   } else {
     status = RouteStatus.OnTime;
@@ -29,40 +84,12 @@ export function calculateRouteStatus({
   return status;
 }
 
-export function formatRouteTimes(route: RoutesResponseItemData) {
-  const timeArrivedAtStoreTime = route.timeArrivedAtStore
-    ? new Date(route.timeArrivedAtStore)
-    : undefined;
+export function parseRouteTimes(
+  route: Pick<RoutesResponseItemData, 'arrivedAtStore' | 'scheduledToArriveAtStore'>
+) {
+  const arrivedAtStoreTime = route.arrivedAtStore ? new Date(route.arrivedAtStore) : undefined;
 
-  const timeScheduledToArriveAtStoreTime = new Date(route.timeScheduledToArriveAtStore);
+  const scheduledToArriveAtStoreTime = new Date(route.scheduledToArriveAtStore);
 
-  return { timeArrivedAtStoreTime, timeScheduledToArriveAtStoreTime };
-}
-
-export function convertRouteToRouteIndicator(route: RoutesResponseItemData): RouteIndicator {
-  const { id, suburb } = route;
-
-  const { timeArrivedAtStoreTime, timeScheduledToArriveAtStoreTime } = formatRouteTimes(route);
-
-  const arrivedTime = timeArrivedAtStoreTime?.toLocaleTimeString() || '';
-  const expectedTime = timeScheduledToArriveAtStoreTime.toLocaleTimeString();
-
-  const status = calculateRouteStatus({
-    timeArrivedAtStoreTime,
-    timeScheduledToArriveAtStoreTime,
-  });
-
-  const statusLabel = STATUS_LABELS[status];
-
-  const color = STATUS_COLORS[status];
-
-  return {
-    id,
-    suburb,
-    arrivedTime,
-    expectedTime,
-    status,
-    statusLabel,
-    color,
-  };
+  return { arrivedAtStoreTime, scheduledToArriveAtStoreTime };
 }
